@@ -1,7 +1,9 @@
-To run the code do following steps:
+# Readme
+The code needs Python 3.11  
+To run the code do following steps:  
 
 1. Create env on mac:  
-`python3 -m venv .venv`  
+`python3.11 -m venv .venv`  
 
 2. Activate env on mac:
 `source .venv/bin/activate`

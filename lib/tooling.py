@@ -1,5 +1,6 @@
 import inspect
 import datetime
+import sys
 from typing import (
     Callable, Any, get_type_hints, get_origin, get_args,
     Literal, Optional, Union, List, Dict
@@ -17,7 +18,12 @@ class Tool:
         self.func = func
         self.name = name or func.__name__
         self.description = description or inspect.getdoc(func)
-        self.signature = inspect.signature(func, eval_str=True)
+        
+        if sys.version_info >= (3, 10):
+            self.signature = inspect.signature(func, eval_str=True)
+        else:
+            self.signature = inspect.signature(func)
+
         self.type_hints = get_type_hints(func)
 
         self.parameters = [
