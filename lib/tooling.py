@@ -122,5 +122,5 @@ def tool(func=None, *, name: str = None, description: str = None):
             return f(*args, **kwargs)
         return Tool(f, name=name, description=description)
     
-    # @tool ou @tool(name="foo")
+    # @tool or @tool(name="foo")
     return wrapper(func) if func else wrapper
