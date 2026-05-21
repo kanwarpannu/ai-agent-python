@@ -3,4 +3,5 @@ openai==2.30.0
 pydantic==2.12.5
 dotenv==0.9.9
 ipykernel==6.31.0
+requests==2.34.2
 python-dotenv
