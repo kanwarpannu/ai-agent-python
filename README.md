@@ -30,6 +30,8 @@ To run the code do following steps:
 
 4. RAG sample application (Needs chroma db from docker file):  
 ```
-1. docker-compose up -d
-2. python agent_with_rag.py
+1. docker-compose up -d  
+1.1 python -m rag_essentials.main health  
+1.2 python -m rag_essentials.main ingest  
+2. python -m rag_essentials.main ask "Summarize the PDF"  
 ```

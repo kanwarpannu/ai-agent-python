@@ -1,0 +1,33 @@
+app:
+  name: rag-essentials
+  pdf_path: TheGamingIndustry2024.pdf
+  collection_name: pdf_rag_collection
+  reset_collection_on_ingest: false
+
+retrieval:
+  chunk_size: 1000
+  chunk_overlap: 150
+  top_k: 4
+  max_context_chunks: 4
+
+chroma:
+  host: localhost
+  port: 8000
+  ssl: false
+  hnsw_space: cosine
+  collection_metadata:
+    owner: local-rag-demo
+    purpose: pdf-rag
+
+llm:
+  model: gpt-4o-mini
+  temperature: 0.0
+  system_prompt: |
+    You are a helpful RAG assistant.
+    Answer only from the supplied context.
+    If the answer is not found in the context, say so clearly.
+
+logging:
+  level: INFO
+  console: true
+  log_file: logs/rag_essentials.log
