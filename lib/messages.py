@@ -1,11 +1,11 @@
 from pydantic import BaseModel
-from typing import Optional, Union, List, Dict, Any, Literal
+from typing import Any, Literal, Union
 
 
 class BaseMessage(BaseModel):
-    content: Optional[str] = ""
+    content: str | None = ""
 
-    def dict(self) -> Dict:
+    def dict(self) -> dict:
         return dict(self)
 
 
@@ -25,7 +25,7 @@ class ToolMessage(BaseMessage):
 
 class AIMessage(BaseMessage):
     role: Literal["assistant"] = "assistant"
-    tool_calls: Optional[List[Any]] = None
+    tool_calls: list[Any] | None = None
 
 
 AnyMessage = Union[

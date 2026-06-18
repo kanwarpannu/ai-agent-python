@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -34,7 +34,7 @@ class RagAnswer(BaseModel):
     answer: str
     context_hits: list[RetrievalHit] = Field(default_factory=list)
     model: str | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class RAGContext(BaseModel):

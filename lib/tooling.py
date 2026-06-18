@@ -3,7 +3,7 @@ import datetime
 import sys
 from typing import (
     Callable, Any, get_type_hints, get_origin, get_args,
-    Literal, Optional, Union, List, Dict
+    Literal, Union
 )
 from functools import wraps
 
@@ -12,8 +12,8 @@ class Tool:
     def __init__(
         self,
         func: Callable,
-        name: Optional[str] = None,
-        description: Optional[str] = None
+        name: str | None = None,
+        description: str | None = None
     ):
         self.func = func
         self.name = name or func.__name__

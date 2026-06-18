@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any, Union
+from typing import Any
 from openai import OpenAI
 import os
 from lib.messages import (
@@ -15,8 +15,8 @@ class LLM:
         self,
         model: str = "gpt-4o-mini",
         temperature: float = 0.0,
-        tools: Optional[List[Tool]] = None,
-        api_key: Optional[str] = None
+        tools: list[Tool] | None = None,
+        api_key: str | None = None
     ):
         self.model = model
         self.temperature = temperature
@@ -29,14 +29,14 @@ class LLM:
             base_url=resolved_base_url
         )
 
-        self.tools: Dict[str, Tool] = {
+        self.tools: dict[str, Tool] = {
             tool.name: tool for tool in (tools or [])
         }
 
     def register_tool(self, tool: Tool):
         self.tools[tool.name] = tool
 
-    def _build_payload(self, messages: List[BaseMessage]) -> Dict[str, Any]:
+    def _build_payload(self, messages: list[BaseMessage]) -> dict[str, Any]:
         payload = {
             "model": self.model,
             "temperature": self.temperature,
@@ -49,7 +49,7 @@ class LLM:
 
         return payload
 
-    def _convert_input(self, input: Any) -> List[BaseMessage]:
+    def _convert_input(self, input: Any) -> list[BaseMessage]:
         if isinstance(input, str):
             return [UserMessage(content=input)]
         elif isinstance(input, BaseMessage):
@@ -59,7 +59,7 @@ class LLM:
         else:
             raise ValueError(f"Invalid input type {type(input)}.")
 
-    def invoke(self, input: Union[str, BaseMessage, List[BaseMessage]]) -> AIMessage:
+    def invoke(self, input: str | BaseMessage | list[BaseMessage]) -> AIMessage:
         messages = self._convert_input(input)
         payload = self._build_payload(messages)
         response = self.client.chat.completions.create(**payload)
