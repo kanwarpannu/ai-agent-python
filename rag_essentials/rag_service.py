@@ -4,7 +4,7 @@ import logging
 
 from .config import Settings
 from .llm_adapter import LLMAdapter
-from .models import AppState, RAGContext, RagAnswer
+from .models import AppState, RAGContext, RagAnswer, TrajectoryStep
 from .pdf_loader import PDFLoader
 from .state_machine import StateMachine
 from .vector_store import ChromaVectorStore
@@ -47,6 +47,8 @@ class RAGService:
         return count
 
     def ask(self, question: str) -> RagAnswer:
+        self.context.trajectory = []
+
         if self.context.state == AppState.IDLE:
             logger.info("Service is IDLE, assuming collection already exists and moving to READY")
             self.state_machine.transition(AppState.READY)
@@ -55,9 +57,18 @@ class RAGService:
         self.state_machine.transition(AppState.RETRIEVING)
         hits = self.vector_store.query(question, top_k=self.settings.retrieval.top_k)
         self.context.retrieved_hits = hits[: self.settings.retrieval.max_context_chunks]
+        self.context.trajectory.append(
+            TrajectoryStep(
+                step="retrieve",
+                detail={"num_hits": len(hits), "kept": len(self.context.retrieved_hits)},
+            )
+        )
 
         self.state_machine.transition(AppState.ANSWERING)
         answer_text, model_name = self.llm.answer(question, self.context.retrieved_hits)
+        self.context.trajectory.append(
+            TrajectoryStep(step="answer", detail={"chars": len(answer_text)})
+        )
         self.state_machine.transition(AppState.READY)
 
         return RagAnswer(

@@ -33,20 +33,28 @@ ai-agent-python/
 │   └── tooling.py                # @tool decorator — auto-generates function schemas
 │
 ├── rag_essentials/               # Full RAG pipeline (CLI)
-│   ├── main.py                   # Entry point: health / ingest / ask commands
+│   ├── main.py                   # Entry point: health / ingest / ask / eval commands
 │   ├── rag_service.py            # Orchestration layer
 │   ├── pdf_loader.py             # PDF parsing and chunking
 │   ├── vector_store.py           # ChromaDB integration
 │   ├── llm_adapter.py            # Context injection and LLM invocation
-│   ├── state_machine.py          # Pipeline state management
+│   ├── state_machine.py          # Pipeline state management (records trajectory)
 │   ├── config.py                 # Pydantic settings (YAML + env vars)
 │   ├── models.py                 # Data models
-│   └── exceptions.py             # Custom exception types
+│   ├── exceptions.py             # Custom exception types
+│   └── eval/                     # Evaluation harness (black-box / single-step / trajectory)
+│       ├── runner.py             # Runs the dataset through the pipeline and scores it
+│       ├── judge.py              # LLM-as-judge (correctness, relevancy, faithfulness)
+│       ├── metrics.py            # Retrieval + trajectory scorers, aggregation
+│       ├── dataset.py            # Loads/validates the YAML eval dataset
+│       ├── report.py             # Summary table + JSON report rendering
+│       └── models.py             # EvalCase, JudgeScore, CaseResult, EvalReport
 │
 ├── simple_agent_with_role.py     # POC 1 — role-based prompting
 ├── agent_with_tool.py            # POC 2 — tool calling (mock tool)
 ├── agent_with_tool_external_api.py  # POC 3 — tool calling (live API)
 ├── config.yaml                   # RAG configuration
+├── eval_dataset.yaml             # Labelled QA dataset for RAG evaluation
 ├── docker-compose.yml            # ChromaDB service
 ├── TheGamingIndustry2024.pdf     # Sample document for RAG ingestion
 └── requirements.txt
@@ -117,6 +125,56 @@ python -m rag_essentials.main ask "What is the gaming industry outlook?" --json
 
 ---
 
+### 5. RAG Evaluation Harness — `rag_essentials/eval/`
+
+**Demonstrates:** Automated quality evaluation of the RAG pipeline against a labelled dataset, across **three complementary lenses**:
+
+| Lens | Question it answers | Metrics |
+|------|--------------------|---------|
+| **Black-box** | Is the final answer good? (system treated as opaque) | `correctness` (vs. a reference answer), `answer_relevancy` |
+| **Single-step** | Which stage is failing? (components in isolation) | Retrieval: `context_recall`, `context_precision`, `mrr`, `avg_distance` · Generation: `faithfulness` |
+| **Trajectory** | Did the pipeline execute correctly? (sequence of internal steps) | `correct_order`, `no_error_state`, `context_nonempty_before_answer`, `expected_path_match` |
+
+It is fully hand-rolled (no external eval libraries) and reuses `lib/llm.py` as the LLM-as-judge for the correctness, relevancy, and faithfulness scores. The retrieval and trajectory metrics are deterministic.
+
+**Requires Docker + an ingested collection** (run the RAG `ingest` step above first):
+
+```bash
+# Step 1 — Ensure ChromaDB is up and the PDF is ingested (see section 4)
+docker-compose up -d
+python -m rag_essentials.main ingest
+
+# Step 2 — Run the evaluation against the labelled dataset
+python -m rag_essentials.main eval --dataset eval_dataset.yaml
+
+# Optionally write a full per-case JSON report, or print JSON to stdout
+python -m rag_essentials.main eval --dataset eval_dataset.yaml --report report.json
+python -m rag_essentials.main eval --json
+```
+
+**What to expect:** A summary table with per-case and mean scores for every metric across the three lenses, e.g.:
+
+```
+case           correct relevancy    recall precision       mrr  faithful      traj
+----------------------------------------------------------------------------------
+q1                0.95      1.00      1.00      1.00      1.00      1.00      1.00
+...
+MEAN              0.91      0.98      0.83      0.71      0.88      0.96      1.00
+```
+
+**The dataset** (`eval_dataset.yaml` at the repo root) is a YAML list of cases. Each case has an `id`, a `question`, an optional `reference_answer`, and `relevant_pages` (1-indexed PDF pages containing the supporting evidence, used for retrieval recall/precision). Edit or extend it to evaluate your own questions:
+
+```yaml
+- id: q1
+  question: "What revenue was the global video game market projected to reach in 2023?"
+  reference_answer: "US$ 249.60 billion in 2023."
+  relevant_pages: [2]
+```
+
+> The dataset also includes a deliberately unanswerable question (`q13_unanswerable`) to confirm the metrics discriminate — a faithful system should state the answer is not in the document.
+
+---
+
 ## Shared Library — `lib/`
 
 Reusable primitives shared across all standalone scripts:
@@ -142,3 +200,6 @@ Reusable primitives shared across all standalone scripts:
 | Automatic JSON schema generation | `lib/tooling.py` |
 | Pydantic configuration management | `rag_essentials/config.py` |
 | State machine for pipeline stages | `rag_essentials/state_machine.py` |
+| Agent evaluation (black-box / single-step / trajectory) | `rag_essentials/eval/` |
+| LLM-as-judge | `rag_essentials/eval/judge.py` |
+| Retrieval metrics (recall, precision, MRR) | `rag_essentials/eval/metrics.py` |

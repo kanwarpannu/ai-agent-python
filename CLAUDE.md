@@ -30,9 +30,16 @@ python -m rag_essentials.main health
 python -m rag_essentials.main ingest
 python -m rag_essentials.main ask "your question here"
 python -m rag_essentials.main ask "your question" --json
+
+# RAG evaluation (requires ChromaDB up + an ingested collection)
+python -m rag_essentials.main eval --dataset eval_dataset.yaml
+python -m rag_essentials.main eval --dataset eval_dataset.yaml --report report.json
+python -m rag_essentials.main eval --json
 ```
 
-There are no automated tests in this repo.
+There are no `pytest`-style automated tests in this repo. The closest thing is the
+RAG evaluation harness (`rag_essentials/eval/`, run via the `eval` command above),
+which scores pipeline quality against a labelled dataset rather than asserting unit behavior.
 
 ## Architecture
 
@@ -57,15 +64,48 @@ The two `agent_with_tool*.py` scripts follow the same loop:
 
 A stateful pipeline with clear layer separation:
 
-- **`main.py`** — Click CLI; three commands delegate to `RagService`
-- **`rag_service.py`** — Orchestrates the full flow: ingest (PDF → chunks → Chroma) and ask (retrieve → inject context → LLM)
-- **`state_machine.py`** — Guards operations with state transitions: `IDLE → INGESTING → READY → RETRIEVING → ANSWERING`. Prevents e.g. asking before ingestion.
+- **`main.py`** — `argparse` CLI; four commands (`health`, `ingest`, `ask`, `eval`) delegate to `RAGService` / the eval harness
+- **`rag_service.py`** — Orchestrates the full flow: ingest (PDF → chunks → Chroma) and ask (retrieve → inject context → LLM). `ask()` also resets and records a per-run `trajectory` on `RAGContext` for evaluation.
+- **`state_machine.py`** — Guards operations with state transitions: `IDLE → INGESTING → READY → RETRIEVING → ANSWERING`. Prevents e.g. asking before ingestion. Each `transition()` appends a `TrajectoryStep` to `RAGContext.trajectory`.
 - **`pdf_loader.py`** — Reads PDFs via `pypdf`, splits into chunks with configurable size/overlap, attaches metadata (page number, chunk index), assigns UUIDs
 - **`vector_store.py`** — HTTP client to local ChromaDB. Stores/retrieves chunks; uses cosine HNSW space by default
 - **`llm_adapter.py`** — Formats retrieved chunks as context, builds the prompt, calls `lib.llm.LLM`
 - **`config.py`** — Pydantic `BaseSettings` hierarchy loaded from `config.yaml` then env vars (prefix `RAG_`). Sections: `AppConfig`, `RetrievalConfig`, `ChromaConfig`, `LLMConfig`, `LoggingConfig`
-- **`models.py`** — Pydantic data models: `DocumentChunk`, `RetrievalHit`, `RagAnswer`, `RAGContext`
+- **`models.py`** — Pydantic data models: `DocumentChunk`, `RetrievalHit`, `RagAnswer`, `RAGContext`, `TrajectoryStep`. `RAGContext` carries a `trajectory: list[TrajectoryStep]` (cleared at the start of each `ask()`) used by trajectory evaluation.
 - **`exceptions.py`** — `RAGError` base with subclasses: `ConfigurationError`, `IngestionError`, `RetrievalError`, `LLMInvocationError`
+
+### Evaluation Harness (`rag_essentials/eval/`)
+
+A self-contained, hand-rolled evaluator (no external eval libraries — reuses `lib.llm.LLM`
+as the LLM-as-judge). Scores pipeline runs against a labelled YAML dataset across three lenses:
+
+- **Black-box** — treats the system as opaque (question → answer): `correctness` (vs. a
+  reference answer) and `answer_relevancy`. Both via LLM-as-judge.
+- **Single-step** — scores each component in isolation. *Retrieval:* `context_recall`,
+  `context_precision`, `mrr`, `avg_distance` (computed from `RetrievalHit` page metadata +
+  distances vs. the dataset's `relevant_pages`). *Generation:* `faithfulness` (LLM-as-judge:
+  is every claim grounded in the retrieved context?).
+- **Trajectory** — deterministic structural checks on the recorded `RAGContext.trajectory`:
+  `correct_order`, `no_error_state`, `context_nonempty_before_answer`, `expected_path_match`.
+
+Modules:
+- **`runner.py`** — `run_eval(dataset_path, settings=None, judge_model=None) -> EvalReport`;
+  builds one `RAGService`, runs each case, reads back `service.context.trajectory`, scores it.
+- **`judge.py`** — `Judge` wraps `lib.llm.LLM`. Since `lib.llm` has no structured-output
+  support, the judge prompts for a strict JSON object (`{"score", "reason"}`) and parses it
+  defensively (json.loads → regex `{...}` fallback → `score=None` on failure).
+- **`metrics.py`** — pure scoring functions + `aggregate()` (per-metric means, skipping `None`).
+- **`dataset.py`** — loads/validates the YAML dataset into `EvalCase` models.
+- **`report.py`** — `render_table()` for the summary table; `EvalReport.model_dump_json()` for `--report`.
+- **`models.py`** — `EvalCase`, `JudgeScore`, `CaseResult`, `EvalReport`.
+
+The dataset lives at the repo root (`eval_dataset.yaml`): a YAML list of cases, each with
+`id`, `question`, optional `reference_answer`, and `relevant_pages` (1-indexed, matching the
+`page` metadata from `pdf_loader.py`). Judge defaults to the RAG model (`gpt-4o-mini`).
+
+Note: trajectory state paths differ between the first `ask` on a fresh service
+(`[READY, RETRIEVING, ANSWERING, READY]`) and subsequent asks (`[RETRIEVING, ANSWERING, READY]`)
+because the leading `IDLE → READY` only happens once — `metrics.py` accepts both as canonical.
 
 ### Configuration
 

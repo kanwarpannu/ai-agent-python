@@ -18,6 +18,11 @@ def build_parser() -> argparse.ArgumentParser:
     ask.add_argument("question", help="Question to ask")
     ask.add_argument("--json", action="store_true", help="Print full JSON response")
 
+    ev = subcommands.add_parser("eval", help="Evaluate the RAG pipeline against a dataset")
+    ev.add_argument("--dataset", default="eval_dataset.yaml", help="Path to the YAML eval dataset")
+    ev.add_argument("--report", default=None, help="Write the full JSON report to this path")
+    ev.add_argument("--json", action="store_true", help="Print the full JSON report to stdout")
+
     return parser
 
 
@@ -52,6 +57,22 @@ def main() -> None:
                 source = hit.metadata.get("source", "unknown")
                 page = hit.metadata.get("page", "?")
                 print(f"{idx}. source={source}, page={page}, distance={hit.distance}")
+        return
+
+    if args.command == "eval":
+        from pathlib import Path
+
+        from .eval import run_eval
+        from .eval.report import render_table
+
+        report = run_eval(args.dataset, settings=settings)
+        if args.json:
+            print(report.model_dump_json(indent=2))
+        else:
+            print(render_table(report))
+        if args.report:
+            Path(args.report).write_text(report.model_dump_json(indent=2), encoding="utf-8")
+            print(f"\nWrote JSON report to {args.report}")
         return
 
     parser.error("Unsupported command")

@@ -37,6 +37,15 @@ class RagAnswer(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class TrajectoryStep(BaseModel):
+    """A single observed step in a pipeline run, used for trajectory evaluation."""
+
+    step: str  # e.g. "transition", "retrieve", "answer"
+    state: AppState | None = None
+    detail: dict[str, Any] = Field(default_factory=dict)
+    at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 class RAGContext(BaseModel):
     state: AppState = AppState.IDLE
     pdf_path: str
@@ -44,3 +53,4 @@ class RAGContext(BaseModel):
     last_error: str | None = None
     last_query: str | None = None
     retrieved_hits: list[RetrievalHit] = Field(default_factory=list)
+    trajectory: list[TrajectoryStep] = Field(default_factory=list)

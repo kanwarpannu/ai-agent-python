@@ -1,0 +1,78 @@
+# Evaluation dataset for the rag_essentials RAG pipeline.
+# Grounded in TheGamingIndustry2024.pdf (page numbers are 1-indexed, matching
+# the `page` metadata produced by pdf_loader.py).
+#
+# Fields:
+#   id               - unique short identifier
+#   question         - the question asked of the pipeline
+#   reference_answer - ground-truth answer (used for black-box correctness)
+#   relevant_pages   - pages that contain the supporting evidence (retrieval recall)
+#
+# Refine/extend these as you tune the pipeline.
+
+- id: q1
+  question: "What revenue was the global video game market projected to reach in 2023?"
+  reference_answer: "The global video game market was projected to reach a revenue of US$ 249.60 billion in 2023."
+  relevant_pages: [2]
+
+- id: q2
+  question: "What is the forecast revenue for the global video game market by 2027?"
+  reference_answer: "Forecasts predict the global video game market will rise to US$ 363.20 billion by 2027."
+  relevant_pages: [2]
+
+- id: q3
+  question: "How large is the esports market reach mentioned in the e-book?"
+  reference_answer: "Esports has gone mainstream with a market reach of US$ 3.8 billion."
+  relevant_pages: [2]
+
+- id: q4
+  question: "In which decade did arcade gaming gain commercial traction with games like Pong and Space Invaders?"
+  reference_answer: "Arcade gaming gained commercial traction in the 1970s with cult favorites like Pong and Space Invaders."
+  relevant_pages: [6]
+
+- id: q5
+  question: "According to the Ernst and Young survey, what percentage of executives believe gaming is at the core of the metaverse experience?"
+  reference_answer: "Over 97% of executives believe gaming is at the core of the metaverse experience."
+  relevant_pages: [9]
+
+- id: q6
+  question: "How does AI help create non-player characters in games?"
+  reference_answer: "AI assists in developing non-player characters (NPCs), facilitating dynamic and responsive gaming environments that enhance realism and add depth to gameplay."
+  relevant_pages: [8]
+
+- id: q7
+  question: "What is the typical team size for indie game developers?"
+  reference_answer: "Indie games are created by independent developers, ranging from a small team of 2 to 10 members."
+  relevant_pages: [12]
+
+- id: q8
+  question: "Which games are given as examples of subscription-based services?"
+  reference_answer: "World of Warcraft and Diablo Immortal are given as examples of games operating on subscription-based services."
+  relevant_pages: [13]
+
+- id: q9
+  question: "How much revenue has PUBG: Battlegrounds made from microtransactions?"
+  reference_answer: "PUBG: Battlegrounds has surpassed over US$ 3.0 billion in revenue from microtransactions alone."
+  relevant_pages: [14]
+
+- id: q10
+  question: "Which social games are mentioned as having leveraged social media to expand their influence?"
+  reference_answer: "Farmville and Candy Crush Saga are mentioned as social games that leveraged social media to connect and interact with friends."
+  relevant_pages: [11]
+
+- id: q11
+  question: "What are the key predictions for gaming in 2024 and beyond?"
+  reference_answer: "Predictions for 2024 include the expansion of cloud gaming, AI-driven personalized storytelling, integration of cryptocurrencies, expansion of the metaverse, and Netflix's arrival in mobile and online gaming."
+  relevant_pages: [17]
+
+- id: q12
+  question: "What is an example of a game that offers loot boxes?"
+  reference_answer: "Overwatch offers loot boxes, which consist of skins, emotes, and voice lines."
+  relevant_pages: [14]
+
+# Deliberately unanswerable from the document — used to confirm the metrics
+# discriminate. A faithful system should say the answer is not in the context.
+- id: q13_unanswerable
+  question: "What was Nintendo's exact net profit in 2024 according to this e-book?"
+  reference_answer: "The e-book does not state Nintendo's net profit for 2024; this information is not in the document."
+  relevant_pages: []
